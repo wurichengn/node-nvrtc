@@ -5,13 +5,15 @@ try{
         var addon = require("./bin/addon_win64.node");
     }else if(osInfo == "linux:x64"){
         var addon = require("./bin/addon_linux_x86_64.node");
+    }else{
+        throw new Error("不支持的系统!");
     }
 }catch(e){
     throw new Error(`初始化cuda扩展失败，可能的原因：
 1.没有安装支持cuda的显卡驱动
 2.没有安装合适的vc环境
 3.您的系统可能不是64位系统
-4.还没有您系统对应的生产包，您需要配置cuda开发环境并且进入该项目修改相关配置重新编译`);
+4.还没有您系统对应的生产包或者和您的cuda版本不符，您需要配置cuda开发环境并且进入该项目修改相关配置重新编译`);
 }
 
 /**
