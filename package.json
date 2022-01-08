@@ -20,6 +20,7 @@
 	},
 	"scripts": {
 		"debug": "node-gyp configure build --debug",
-		"build": "node-gyp configure build --release"
+		"build": "node-gyp configure build --release",
+		"install":""
 	}
 }
