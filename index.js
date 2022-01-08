@@ -1,10 +1,17 @@
+var os = require("os");
+var osInfo = os.platform() + ":" + os.arch();
 try{
-    var addon = require("./bin/addon_win64.node");
+    if(osInfo == "win32:x64"){
+        var addon = require("./bin/addon_win64.node");
+    }else if(osInfo == "linux:x64"){
+        var addon = require("./bin/addon_linux_x86_64.node");
+    }
 }catch(e){
     throw new Error(`初始化cuda扩展失败，可能的原因：
 1.没有安装支持cuda的显卡驱动
 2.没有安装合适的vc环境
-3.您的系统可能不是64位系统`);
+3.您的系统可能不是64位系统
+4.还没有您系统对应的生产包，您需要配置cuda开发环境并且进入该项目修改相关配置重新编译`);
 }
 
 /**
@@ -40,19 +47,12 @@ class CudaProgram{
     /**
      * 
      * @param {string} code cuda程序的代码
+     * @param {(filename:string)=>(string|null)} fileCallback 引入文件回调函数，当有include文件时会通过这个回调函数处理
      */
-    constructor(code){
+    constructor(code,fileCallback){
         var self = this;
         /**Cuda程序句柄 */
-        this.program = addon.createProgram(code,function(name){
-            console.log(name);
-            return `
-            int dgtest(int level){
-                if(level <= 0)
-                    return 1;
-                return dgtest(level-1) * level;
-            }`;
-        });
+        this.program = addon.createProgram(code,fileCallback);
 
         /**
          * 创建一个Cuda核心

@@ -3,6 +3,17 @@
 	"version": "0.0.1",
 	"main": "index.js",
 	"gypfile": true,
+	"license": "MIT",
+	"homepage": "https://github.com/wurichengn/node-nvrtc",
+	"repository": {
+    "type": "git",
+    "url": "git+https://github.com/wurichengn/node-nvrtc.git"
+  },
+	"keywords": [
+    "cuda",
+		"nvrtc",
+    "javascript"
+  ],
 	"dependencies": {
 		"node-addon-api": "^4.2.0",
 		"node-gyp": "^8.4.1"
