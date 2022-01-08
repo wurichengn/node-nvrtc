@@ -1,0 +1,14 @@
+{
+	"name": "node-nvrtc",
+	"version": "0.0.1",
+	"main": "index.js",
+	"gypfile": true,
+	"dependencies": {
+		"node-addon-api": "^4.2.0",
+		"node-gyp": "^8.4.1"
+	},
+	"scripts": {
+		"debug": "node-gyp configure build --debug",
+		"build": "node-gyp configure build --release"
+	}
+}
