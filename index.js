@@ -1,7 +1,10 @@
 var os = require("os");
+var child_process = require("child_process");
+var process = require("process");
 var osInfo = os.platform() + ":" + os.arch();
 try{
     if(osInfo == "win32:x64"){
+        process.env.Path = __dirname + "\\lib;" + process.env.Path;
         var addon = require("./bin/addon_win64.node");
     }else if(osInfo == "linux:x64"){
         var addon = require("./bin/addon_linux_x86_64.node");

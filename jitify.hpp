@@ -130,7 +130,7 @@
 #endif
 
 #ifdef _MSC_VER       // MSVC compiler
-//#include <dbghelp.h>  // For UnDecorateSymbolName
+#include <dbghelp.h>  // For UnDecorateSymbolName
 #else
 #include <cxxabi.h>  // For abi::__cxa_demangle
 #endif
@@ -797,16 +797,16 @@ inline std::string demangle_native_type(const std::type_info& typeinfo) {
   // Get the decorated name and skip over the leading '.'.
   const char* decorated_name = typeinfo.raw_name() + 1;
   char undecorated_name[4096];
-  // if (UnDecorateSymbolName(
-  //         decorated_name, undecorated_name,
-  //         sizeof(undecorated_name) / sizeof(*undecorated_name),
-  //         UNDNAME_NO_ARGUMENTS |          // Treat input as a type name
-  //             UNDNAME_NAME_ONLY           // No "class" and "struct" prefixes
-  //         /*UNDNAME_NO_MS_KEYWORDS*/)) {  // No "__cdecl", "__ptr64" etc.
-  //   // WAR for UNDNAME_NO_MS_KEYWORDS messing up function types.
-  //   strip_double_underscore_tokens(undecorated_name);
-  //   return undecorated_name;
-  // }
+  if (UnDecorateSymbolName(
+          decorated_name, undecorated_name,
+          sizeof(undecorated_name) / sizeof(*undecorated_name),
+          UNDNAME_NO_ARGUMENTS |          // Treat input as a type name
+              UNDNAME_NAME_ONLY           // No "class" and "struct" prefixes
+          /*UNDNAME_NO_MS_KEYWORDS*/)) {  // No "__cdecl", "__ptr64" etc.
+    // WAR for UNDNAME_NO_MS_KEYWORDS messing up function types.
+    strip_double_underscore_tokens(undecorated_name);
+    return undecorated_name;
+  }
   throw std::runtime_error("UnDecorateSymbolName failed");
 }
 #else  // not MSVC
