@@ -1,6 +1,7 @@
 #include <napi.h>
 #include "jitify.hpp"
 #include "cuda_runtime.h"
+#include "helper_cuda.h"
 
 using namespace Napi;
 
@@ -24,7 +25,9 @@ std::istream* file_callback(std::string filename, std::iostream& tmp_stream) {
 //处理cuda错误
 void NodeCudaError(Napi::Env env,cudaError_t error){
   if(error == cudaSuccess) {return;}
-  Napi::TypeError::New(env,cudaGetErrorString(cudaGetLastError())).ThrowAsJavaScriptException();
+  std::string err(cudaGetErrorString(cudaGetLastError()));
+  err += std::string(":") + std::string(__FILE__) + std::string(":") + std::to_string(__LINE__);
+  Napi::TypeError::New(env,err).ThrowAsJavaScriptException();
 }
 
 //======获取设备数量======
@@ -87,6 +90,11 @@ void setDevice(const Napi::CallbackInfo& args){
   NodeCudaError(env,cudaSetDevice(device));
 }
 
+//重置当前显卡当前进程的所有内容
+void deviceReset(const Napi::CallbackInfo& args){
+  cudaDeviceReset();
+}
+
 //======创建程序======
 Napi::Value createProgram(const Napi::CallbackInfo& args){
   //获取env
@@ -103,9 +111,14 @@ Napi::Value createProgram(const Napi::CallbackInfo& args){
     lastFileEnv = NULL;
   }
   
-  //创建cuda程序
-  std::vector<std::string> opts;
-  jitify::experimental::Program *program = new jitify::experimental::Program(str, {}, opts,file_callback);
+  jitify::experimental::Program *program = NULL;
+  try{
+    //创建cuda程序
+    std::vector<std::string> opts;
+    program = new jitify::experimental::Program(str, {}, opts,file_callback);
+  }catch(std::runtime_error msg){
+    Napi::TypeError::New(env,msg.what()).ThrowAsJavaScriptException();
+  }
 
   //返回句柄
   return Napi::Number::New(env,(size_t)program);
@@ -128,8 +141,14 @@ Napi::Value createKernel(const Napi::CallbackInfo& args){
   //jitify::experimental::Kernel object = program->kernel(str);
   //jitify::experimental::Kernel * kernel = (jitify::experimental::Kernel *) malloc(sizeof(jitify::experimental::Kernel));
   //memcpy(kernel,&object,sizeof(jitify::experimental::Kernel));
-  jitify::experimental::Program * program = (jitify::experimental::Program *)args[0].As<Napi::Number>().Int64Value();
-  auto kernel = new jitify::experimental::Kernel(program,str,std::vector<std::string>({}));
+  jitify::experimental::Program * program = NULL;
+  jitify::experimental::Kernel * kernel = NULL;
+  try{
+    program = (jitify::experimental::Program *)args[0].As<Napi::Number>().Int64Value();
+    kernel = new jitify::experimental::Kernel(program,str,std::vector<std::string>({}));
+  }catch(std::runtime_error msg){
+    Napi::TypeError::New(env,msg.what()).ThrowAsJavaScriptException();
+  }
 
   return Napi::Number::New(env,(size_t)kernel);
 }
@@ -149,8 +168,14 @@ Napi::Value createInstance(const Napi::CallbackInfo& args){
   }
 
   //创建实例
-  jitify::experimental::Kernel * kernel = (jitify::experimental::Kernel *)args[0].As<Napi::Number>().Int64Value();
-  jitify::experimental::KernelInstantiation * instance = new jitify::experimental::KernelInstantiation(*kernel,instance_args);
+  jitify::experimental::Kernel * kernel = NULL;
+  jitify::experimental::KernelInstantiation * instance = NULL;
+  try{
+    kernel = (jitify::experimental::Kernel *)args[0].As<Napi::Number>().Int64Value();
+    instance = new jitify::experimental::KernelInstantiation(*kernel,instance_args);
+  }catch(std::runtime_error msg){
+    Napi::TypeError::New(env,msg.what()).ThrowAsJavaScriptException();
+  }
 
   return Napi::Number::New(env,(size_t)instance);
 }
@@ -189,7 +214,7 @@ Napi::Value createBuffer(const Napi::CallbackInfo& args){
   //获取env
   Napi::Env env = args.Env();
 
-  void * buffer;
+  void * buffer = NULL;
   NodeCudaError(env,cudaMalloc(&buffer,(size_t)args[0].As<Napi::Number>().Int64Value()));
 
   return Napi::Number::New(env,(size_t)buffer);
@@ -226,6 +251,58 @@ void readBuffer(const Napi::CallbackInfo& args){
   size_t size = (size_t)args[2].As<Napi::Number>().Int64Value();
   void * data = args[1].As<Napi::ArrayBuffer>().Data();
   NodeCudaError(env,cudaMemcpy(data,buffer, size, cudaMemcpyDeviceToHost));
+}
+
+
+
+//======创建数组======
+Napi::Value createArray3D(const Napi::CallbackInfo& args){
+  //获取env
+  Napi::Env env = args.Env();
+
+  cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<char>();
+  void * array = NULL;
+  NodeCudaError(env,cudaMalloc3DArray(&array, &channelDesc, make_cudaExtent(2*sizeof(char),2,2), 0));
+
+  return Napi::Number::New(env,(size_t)buffer);
+}
+
+//======写入数组======
+Napi::Value writeArray3D(const Napi::CallbackInfo& args){
+  //获取env
+  Napi::Env env = args.Env();
+
+  void * array = (void **)args[0].As<Napi::Number>().Int64Value();
+  void * data = args[1].As<Napi::ArrayBuffer>().Data();
+  size_t sizeX = (size_t)args[2].As<Napi::Number>().Int64Value();
+  size_t sizeY = (size_t)args[3].As<Napi::Number>().Int64Value();
+  size_t sizeZ = (size_t)args[4].As<Napi::Number>().Int64Value();
+
+  cudaMemcpy3DParms copyParams = {0};
+  copyParams.srcPtr   = make_cudaPitchedPtr(data, sizeX*sizeof(float), sizeY, sizeZ);
+  copyParams.dstArray = array;
+  copyParams.extent   = make_cudaExtent(sizeX,sizeY,sizeZ);
+  copyParams.kind     = cudaMemcpyHostToDevice;
+  NodeCudaError(cudaMemcpy3D(&copyParams));
+}
+
+//======读取数组======
+Napi::Value readArray3D(const Napi::CallbackInfo& args){
+  //获取env
+  Napi::Env env = args.Env();
+
+  void * array = (void **)args[0].As<Napi::Number>().Int64Value();
+  void * data = args[1].As<Napi::ArrayBuffer>().Data();
+  size_t sizeX = (size_t)args[2].As<Napi::Number>().Int64Value();
+  size_t sizeY = (size_t)args[3].As<Napi::Number>().Int64Value();
+  size_t sizeZ = (size_t)args[4].As<Napi::Number>().Int64Value();
+
+  cudaMemcpy3DParms copyParams = {0};
+  copyParams.srcArray = array;
+  copyParams.dstPtr   = make_cudaPitchedPtr(data, sizeX*sizeof(float), sizeY, sizeZ);
+  copyParams.extent   = make_cudaExtent(sizeX,sizeY,sizeZ);
+  copyParams.kind     = cudaMemcpyDeviceToHost;
+  NodeCudaError(cudaMemcpy3D(&copyParams));
 }
 
 
@@ -347,6 +424,8 @@ Napi::Value runLauncher(const Napi::CallbackInfo& args){
     cuGetErrorName(res, &str);
     re.Set(Napi::String::New(env,"err"),Napi::String::New(env,str));
     re.Set(Napi::String::New(env,"code"),Napi::Number::New(env,-1));
+    re.Set(Napi::String::New(env,"file"),Napi::String::New(env,__FILE__));
+    re.Set(Napi::String::New(env,"line"),Napi::Number::New(env,__LINE__));
   }
   return re;
 }
@@ -438,6 +517,7 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
   exports.Set(Napi::String::New(env, "getDeviceCount"),Napi::Function::New(env, getDeviceCount));
   exports.Set(Napi::String::New(env, "getDevice"),Napi::Function::New(env, getDevice));
   exports.Set(Napi::String::New(env, "setDevice"),Napi::Function::New(env, setDevice));
+  exports.Set(Napi::String::New(env, "deviceReset"),Napi::Function::New(env, deviceReset));
   exports.Set(Napi::String::New(env, "getDeviceProperties"),Napi::Function::New(env, getDeviceProperties));
 
   return exports;

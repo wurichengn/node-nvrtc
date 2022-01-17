@@ -2816,7 +2816,7 @@ inline void load_program(std::string const& cuda_source,
 #endif
       // There was a non include-related compilation error
       // TODO: How to handle error?
-      throw std::runtime_error("Runtime compilation failed");
+      throw std::runtime_error(std::string("Runtime compilation failed") + log);
     }
 
     bool is_included_with_quotes = false;
@@ -2904,7 +2904,7 @@ inline void instantiate_kernel(
 #endif
   if (ret != NVRTC_SUCCESS) {
     throw std::runtime_error(std::string("NVRTC error: ") +
-                             nvrtcGetErrorString(ret));
+                             nvrtcGetErrorString(ret) + std::string("\n") + *log);
   }
 
 #if JITIFY_PRINT_PTX
