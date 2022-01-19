@@ -20,6 +20,13 @@ try{
 }
 
 /**
+ * 重置当前选中设备当前进程的所有内容
+ * @type {()=>number}
+ */
+ var deviceReset = addon.deviceReset;
+ module.exports.deviceReset = deviceReset;
+
+/**
  * 获取可用显卡数量
  * @type {()=>number}
  */
@@ -117,7 +124,8 @@ class CudaInstantiate{
         this.kernel = kernel;
         /**实例初始化时的模板参数 */
         this.templates = templates || [];
-        var temps = [kernel.kernel,...templates];
+        this.templates = this.templates.map(v => (v + ""));
+        var temps = [kernel.kernel,...this.templates];
         /**实例句柄 */
         this.instantiate = addon.createInstance.apply(addon,temps);
 
@@ -161,7 +169,10 @@ class CudaLauncher{
          */
         this.run = function(...args){
             args = args.map(val=>val.buffer);
-            addon.runLauncher(self.launcher,args);
+            var re = addon.runLauncher(self.launcher,args);
+            if(re.code != 0){
+                throw new Error(re.err);
+            }
         }
     }
 }
@@ -200,3 +211,57 @@ class CudaBuffer{
 
 module.exports.CudaBuffer = CudaBuffer;
 
+
+/**Cuda三维贴图 */
+class CudaTexutre3D{
+    /**
+     * @param {CudaBuffer} cudaBuffer 
+     * @param {{x:number,y:number,z:number}} size
+     */
+    constructor(cudaBuffer,size){
+        var self = this;
+        /**对应的cudaBuffer */
+        this.cudaBuffer = cudaBuffer;
+        /**贴图尺寸 */
+        this.size = size;
+        /**贴图指针 */
+        this.buffer = addon.createTexture3D(this.cudaBuffer.buffer,this.cudaBuffer.size,size.x,size.y,size.z);
+    }
+}
+
+module.exports.CudaTexutre3D = CudaTexutre3D;
+
+
+/**Cuda三维数组 */
+class CudaArray3D{
+    /**
+     * @param {{x:number,y:number,z:number}} size 数组的尺寸
+     */
+    constructor(size){
+        var self = this;
+        /**数组指针 */
+        this.buffer = addon.createArray3D(size.x,size.y,size.z);
+        /**缓冲区尺寸 */
+        this.size = size;
+
+        /**
+         * 写入数据
+         * @param {ArrayBuffer} buffer 要写入的buffer
+         */
+        this.writeData = function(buffer){
+            //写入buffer
+            addon.writeArray3D(self.buffer,buffer,size.x,size.y,size.z);
+        }
+
+        /**
+         * 读取数据
+         * @param {ArrayBuffer} buffer 要存储读取的数据的buffer
+         */
+        this.readData = function(buffer){
+            //读取buffer
+            addon.readArray3D(self.buffer,buffer,size.x,size.y,size.z);
+        }
+    }
+}
+
+module.exports.CudaArray3D = CudaArray3D;

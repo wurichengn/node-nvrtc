@@ -1,7 +1,6 @@
 #include <napi.h>
 #include "jitify.hpp"
 #include "cuda_runtime.h"
-#include "helper_cuda.h"
 
 using namespace Napi;
 
@@ -260,38 +259,44 @@ Napi::Value createArray3D(const Napi::CallbackInfo& args){
   //获取env
   Napi::Env env = args.Env();
 
-  cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<char>();
-  void * array = NULL;
-  NodeCudaError(env,cudaMalloc3DArray(&array, &channelDesc, make_cudaExtent(2*sizeof(char),2,2), 0));
+  size_t sizeX = (size_t)args[0].As<Napi::Number>().Int64Value();
+  size_t sizeY = (size_t)args[1].As<Napi::Number>().Int64Value();
+  size_t sizeZ = (size_t)args[2].As<Napi::Number>().Int64Value();
 
-  return Napi::Number::New(env,(size_t)buffer);
+  cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<char>();
+  cudaArray_t array = NULL;
+  NodeCudaError(env,cudaMalloc3DArray(&array, &channelDesc, make_cudaExtent(sizeX*sizeof(char),sizeY,sizeZ), 0));
+
+  return Napi::Number::New(env,(size_t)array);
 }
 
 //======写入数组======
-Napi::Value writeArray3D(const Napi::CallbackInfo& args){
+void writeArray3D(const Napi::CallbackInfo& args){
   //获取env
   Napi::Env env = args.Env();
 
-  void * array = (void **)args[0].As<Napi::Number>().Int64Value();
+  cudaArray_t array = (cudaArray_t)args[0].As<Napi::Number>().Int64Value();
   void * data = args[1].As<Napi::ArrayBuffer>().Data();
   size_t sizeX = (size_t)args[2].As<Napi::Number>().Int64Value();
   size_t sizeY = (size_t)args[3].As<Napi::Number>().Int64Value();
   size_t sizeZ = (size_t)args[4].As<Napi::Number>().Int64Value();
 
   cudaMemcpy3DParms copyParams = {0};
-  copyParams.srcPtr   = make_cudaPitchedPtr(data, sizeX*sizeof(float), sizeY, sizeZ);
+  copyParams.srcPtr   = make_cudaPitchedPtr(data, sizeX*sizeof(char), sizeY, sizeZ);
   copyParams.dstArray = array;
   copyParams.extent   = make_cudaExtent(sizeX,sizeY,sizeZ);
   copyParams.kind     = cudaMemcpyHostToDevice;
-  NodeCudaError(cudaMemcpy3D(&copyParams));
+  NodeCudaError(env,cudaMemcpy3D(&copyParams));
 }
 
+
+
 //======读取数组======
-Napi::Value readArray3D(const Napi::CallbackInfo& args){
+void readArray3D(const Napi::CallbackInfo& args){
   //获取env
   Napi::Env env = args.Env();
 
-  void * array = (void **)args[0].As<Napi::Number>().Int64Value();
+  cudaArray_t array = (cudaArray_t)args[0].As<Napi::Number>().Int64Value();
   void * data = args[1].As<Napi::ArrayBuffer>().Data();
   size_t sizeX = (size_t)args[2].As<Napi::Number>().Int64Value();
   size_t sizeY = (size_t)args[3].As<Napi::Number>().Int64Value();
@@ -299,10 +304,114 @@ Napi::Value readArray3D(const Napi::CallbackInfo& args){
 
   cudaMemcpy3DParms copyParams = {0};
   copyParams.srcArray = array;
-  copyParams.dstPtr   = make_cudaPitchedPtr(data, sizeX*sizeof(float), sizeY, sizeZ);
+  copyParams.dstPtr   = make_cudaPitchedPtr(data, sizeX*sizeof(char), sizeY, sizeZ);
   copyParams.extent   = make_cudaExtent(sizeX,sizeY,sizeZ);
   copyParams.kind     = cudaMemcpyDeviceToHost;
-  NodeCudaError(cudaMemcpy3D(&copyParams));
+  NodeCudaError(env,cudaMemcpy3D(&copyParams));
+}
+
+
+//创建三维buffer
+Napi::Value createBuffer3D(const Napi::CallbackInfo& args){
+  //获取env
+  Napi::Env env = args.Env();
+
+  cudaPitchedPtr * ptr = NULL;
+  cudaExtent size;
+  size.width = (size_t)args[0].As<Napi::Number>().Int64Value();
+  size.height = (size_t)args[1].As<Napi::Number>().Int64Value();
+  size.depth = (size_t)args[2].As<Napi::Number>().Int64Value();
+  NodeCudaError(env,cudaMalloc3D(&ptr,size));
+
+  return Napi::Number::New(env,(size_t)ptr);
+}
+
+
+//写入三维buffer
+void writeBuffer3D(const Napi::CallbackInfo& args){
+  //获取env
+  Napi::Env env = args.Env();
+
+  cudaPitchedPtr * ptr = (cudaPitchedPtr *)args[0].As<Napi::Number>().Int64Value();
+  void * data = args[1].As<Napi::ArrayBuffer>().Data();
+
+  cudaExtent size;
+  size.width = (size_t)args[2].As<Napi::Number>().Int64Value();
+  size.height = (size_t)args[3].As<Napi::Number>().Int64Value();
+  size.depth = (size_t)args[4].As<Napi::Number>().Int64Value();
+  size_t width = (size_t)args[5].As<Napi::Number>().Int64Value();
+
+  cudaMemcpy3DParms parms = {0};
+  parms.srcPtr = make_cudaPitchedPtr(data, size.width, width, size.height);
+  parms.dstPtr = *ptr;
+  parms.extent = size;
+  parms.kind = cudaMemcpyHostToDevice;
+  NodeCudaError(env,cudaMemcpy3D(&parms));
+}
+
+
+//读取三维buffer
+void readBuffer3D(const Napi::CallbackInfo& args){
+  //获取env
+  Napi::Env env = args.Env();
+
+  cudaPitchedPtr * ptr = (cudaPitchedPtr *)args[0].As<Napi::Number>().Int64Value();
+  void * data = args[1].As<Napi::ArrayBuffer>().Data();
+
+  cudaExtent size;
+  size.width = (size_t)args[2].As<Napi::Number>().Int64Value();
+  size.height = (size_t)args[3].As<Napi::Number>().Int64Value();
+  size.depth = (size_t)args[4].As<Napi::Number>().Int64Value();
+  size_t width = (size_t)args[5].As<Napi::Number>().Int64Value();
+
+  cudaMemcpy3DParms parms = {0};
+  parms.dstPtr = make_cudaPitchedPtr(data, size.width, width, size.height);
+  parms.srcPtr = *ptr;
+  parms.extent = size;
+  parms.kind = cudaMemcpyDeviceToHost;
+  NodeCudaError(env,cudaMemcpy3D(&parms));
+}
+
+
+Napi::Value createTexture3D(const Napi::CallbackInfo& args){
+  //获取env
+  Napi::Env env = args.Env();
+
+  void * buffer = (void *)args[0].As<Napi::Number>().Int64Value();
+  size_t length = (size_t)args[1].As<Napi::Number>().Int64Value();
+  size_t sizeX = (size_t)args[2].As<Napi::Number>().Int64Value();
+  size_t sizeY = (size_t)args[3].As<Napi::Number>().Int64Value();
+  size_t sizeZ = (size_t)args[4].As<Napi::Number>().Int64Value();
+
+  cudaTextureObject_t texture;
+  
+  cudaChannelFormatDesc desc = cudaCreateChannelDesc<float>();
+
+  cudaResourceDesc    texRes;
+  memset(&texRes, 0, sizeof(cudaResourceDesc));
+  texRes.resType = cudaResourceTypeLinear;
+  texRes.res.linear.devPtr = buffer;
+  texRes.res.linear.sizeInBytes = length;
+  texRes.res.linear.desc = desc;
+
+  cudaTextureDesc     texDescr;
+  memset(&texDescr, 0, sizeof(cudaTextureDesc));
+  texDescr.normalizedCoords = false;
+  texDescr.filterMode = cudaFilterModeLinear;
+  texDescr.addressMode[0] = cudaAddressModeMirror;
+  texDescr.addressMode[1] = cudaAddressModeMirror;
+  texDescr.addressMode[2] = cudaAddressModeMirror;
+  texDescr.readMode = cudaReadModeElementType;
+
+  cudaResourceViewDesc texView;
+  memset(&texView, 0, sizeof(texView));
+  texView.format = cudaResViewFormatFloat1;
+  texView.width = sizeX;
+  texView.height = sizeY;
+  texView.depth = sizeZ;
+
+  NodeCudaError(env,cudaCreateTextureObject(&texture, &texRes, &texDescr, &texView));
+  return Napi::Number::New(env,(size_t)texture);
 }
 
 
@@ -506,10 +615,22 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
   exports.Set(Napi::String::New(env, "createKernel"),Napi::Function::New(env, createKernel));
   exports.Set(Napi::String::New(env, "createInstance"),Napi::Function::New(env, createInstance));
   exports.Set(Napi::String::New(env, "createLauncher"),Napi::Function::New(env, createLauncher));
+
   exports.Set(Napi::String::New(env, "createBuffer"),Napi::Function::New(env, createBuffer));
   exports.Set(Napi::String::New(env, "writeBuffer"),Napi::Function::New(env, writeBuffer));
   exports.Set(Napi::String::New(env, "readBuffer"),Napi::Function::New(env, readBuffer));
   exports.Set(Napi::String::New(env, "freeBuffer"),Napi::Function::New(env, freeBuffer));
+
+  exports.Set(Napi::String::New(env, "createBuffer3D"),Napi::Function::New(env, createBuffer));
+  exports.Set(Napi::String::New(env, "writeBuffer3D"),Napi::Function::New(env, writeBuffer));
+  exports.Set(Napi::String::New(env, "readBuffer3D"),Napi::Function::New(env, readBuffer));
+
+  exports.Set(Napi::String::New(env, "createArray3D"),Napi::Function::New(env, createArray3D));
+  exports.Set(Napi::String::New(env, "writeArray3D"),Napi::Function::New(env, writeArray3D));
+  exports.Set(Napi::String::New(env, "readArray3D"),Napi::Function::New(env, readArray3D));
+
+  exports.Set(Napi::String::New(env, "createTexture3D"),Napi::Function::New(env, createTexture3D));
+
   exports.Set(Napi::String::New(env, "runKernel"),Napi::Function::New(env, runKernel));
   exports.Set(Napi::String::New(env, "runLauncher"),Napi::Function::New(env, runLauncher));
   exports.Set(Napi::String::New(env, "runInstance"),Napi::Function::New(env, runInstance));
