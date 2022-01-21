@@ -227,6 +227,7 @@ void writeBuffer(const Napi::CallbackInfo& args){
   void * buffer = (void **)args[0].As<Napi::Number>().Int64Value();
   size_t size = (size_t)args[2].As<Napi::Number>().Int64Value();
   void * data = args[1].As<Napi::ArrayBuffer>().Data();
+  
   NodeCudaError(env,cudaMemcpy(buffer, data, size, cudaMemcpyHostToDevice));
 }
 
@@ -316,14 +317,20 @@ Napi::Value createBuffer3D(const Napi::CallbackInfo& args){
   //获取env
   Napi::Env env = args.Env();
 
-  cudaPitchedPtr * ptr = NULL;
+  cudaPitchedPtr * ptr = new cudaPitchedPtr();
   cudaExtent size;
   size.width = (size_t)args[0].As<Napi::Number>().Int64Value();
   size.height = (size_t)args[1].As<Napi::Number>().Int64Value();
   size.depth = (size_t)args[2].As<Napi::Number>().Int64Value();
-  NodeCudaError(env,cudaMalloc3D(&ptr,size));
+  NodeCudaError(env,cudaMalloc3D(ptr,size));
 
-  return Napi::Number::New(env,(size_t)ptr);
+  Napi::Object re = Napi::Object::New(env);
+  re.Set(Napi::String::New(env, "index"),Napi::Number::New(env,(size_t)ptr));
+  re.Set(Napi::String::New(env, "ptr"),Napi::Number::New(env,(size_t)ptr->ptr));
+  re.Set(Napi::String::New(env, "pitch"),Napi::Number::New(env,(size_t)ptr->pitch));
+  re.Set(Napi::String::New(env, "xsize"),Napi::Number::New(env,(size_t)ptr->xsize));
+  re.Set(Napi::String::New(env, "ysize"),Napi::Number::New(env,(size_t)ptr->ysize));
+  return re;
 }
 
 
@@ -377,40 +384,30 @@ Napi::Value createTexture3D(const Napi::CallbackInfo& args){
   //获取env
   Napi::Env env = args.Env();
 
-  void * buffer = (void *)args[0].As<Napi::Number>().Int64Value();
+  cudaPitchedPtr * ptr = (cudaPitchedPtr *)args[0].As<Napi::Number>().Int64Value();
   size_t length = (size_t)args[1].As<Napi::Number>().Int64Value();
-  size_t sizeX = (size_t)args[2].As<Napi::Number>().Int64Value();
-  size_t sizeY = (size_t)args[3].As<Napi::Number>().Int64Value();
-  size_t sizeZ = (size_t)args[4].As<Napi::Number>().Int64Value();
 
   cudaTextureObject_t texture;
   
-  cudaChannelFormatDesc desc = cudaCreateChannelDesc<float>();
+  cudaChannelFormatDesc desc = cudaCreateChannelDesc<char>();
 
   cudaResourceDesc    texRes;
   memset(&texRes, 0, sizeof(cudaResourceDesc));
   texRes.resType = cudaResourceTypeLinear;
-  texRes.res.linear.devPtr = buffer;
+  texRes.res.linear.devPtr = ptr;
   texRes.res.linear.sizeInBytes = length;
   texRes.res.linear.desc = desc;
 
   cudaTextureDesc     texDescr;
   memset(&texDescr, 0, sizeof(cudaTextureDesc));
   texDescr.normalizedCoords = false;
-  texDescr.filterMode = cudaFilterModeLinear;
+  texDescr.filterMode = cudaFilterModePoint;
   texDescr.addressMode[0] = cudaAddressModeMirror;
   texDescr.addressMode[1] = cudaAddressModeMirror;
   texDescr.addressMode[2] = cudaAddressModeMirror;
   texDescr.readMode = cudaReadModeElementType;
 
-  cudaResourceViewDesc texView;
-  memset(&texView, 0, sizeof(texView));
-  texView.format = cudaResViewFormatFloat1;
-  texView.width = sizeX;
-  texView.height = sizeY;
-  texView.depth = sizeZ;
-
-  NodeCudaError(env,cudaCreateTextureObject(&texture, &texRes, &texDescr, &texView));
+  NodeCudaError(env,cudaCreateTextureObject(&texture, &texRes, &texDescr, NULL));
   return Napi::Number::New(env,(size_t)texture);
 }
 
@@ -621,9 +618,9 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
   exports.Set(Napi::String::New(env, "readBuffer"),Napi::Function::New(env, readBuffer));
   exports.Set(Napi::String::New(env, "freeBuffer"),Napi::Function::New(env, freeBuffer));
 
-  exports.Set(Napi::String::New(env, "createBuffer3D"),Napi::Function::New(env, createBuffer));
-  exports.Set(Napi::String::New(env, "writeBuffer3D"),Napi::Function::New(env, writeBuffer));
-  exports.Set(Napi::String::New(env, "readBuffer3D"),Napi::Function::New(env, readBuffer));
+  exports.Set(Napi::String::New(env, "createBuffer3D"),Napi::Function::New(env, createBuffer3D));
+  exports.Set(Napi::String::New(env, "writeBuffer3D"),Napi::Function::New(env, writeBuffer3D));
+  exports.Set(Napi::String::New(env, "readBuffer3D"),Napi::Function::New(env, readBuffer3D));
 
   exports.Set(Napi::String::New(env, "createArray3D"),Napi::Function::New(env, createArray3D));
   exports.Set(Napi::String::New(env, "writeArray3D"),Napi::Function::New(env, writeArray3D));

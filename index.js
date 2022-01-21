@@ -212,6 +212,74 @@ class CudaBuffer{
 module.exports.CudaBuffer = CudaBuffer;
 
 
+/**Cuda三维缓冲区 */
+class CudaBuffer3D{
+    /**
+     * @param {{x:number,y:number,z:number}} size 数组尺寸
+     * @param {number} unitSize 每个单位元素的字节数
+     */
+    constructor(size,unitSize = 1){
+        var self = this;
+        /**缓冲区指针 */
+        this.instance = addon.createBuffer3D(size.x * unitSize,size.y,size.z);
+        
+        var ptrBuffer = new CudaBuffer(4 * 8);
+        ptrBuffer.writeData(new BigUint64Array([
+            BigInt(this.instance.ptr),
+            BigInt(this.instance.pitch),
+            BigInt(this.instance.xsize),
+            BigInt(this.instance.ysize),
+            BigInt(size.z)
+        ]).buffer);
+
+        this.buffer = ptrBuffer.buffer;
+        /**缓冲区尺寸 */
+        this.size = size;
+        /**单位元素字节数 */
+        this.unitSize = unitSize;
+
+        /**
+         * 写入数据
+         * @param {ArrayBuffer} buffer 要写入的buffer
+         */
+        this.writeData = function(buffer){
+            //写入buffer
+            addon.writeBuffer3D(self.instance.index,buffer,size.x * unitSize,size.y,size.z,size.x);
+        }
+
+        /**
+         * 读取数据
+         * @param {ArrayBuffer} buffer 要存储读取的数据的buffer
+         */
+        this.readData = function(buffer){
+            //读取buffer
+            addon.readBuffer3D(self.instance.index,buffer,size.x * unitSize,size.y,size.z,size.x);
+        }
+    }
+}
+
+module.exports.CudaBuffer3D = CudaBuffer3D;
+
+
+/**Cuda三维贴图 */
+class CudaBufferTexture3D{
+    /**
+     * @param {CudaBuffer3D} cudaBuffer
+     */
+    constructor(cudaBuffer){
+        var self = this;
+        /**对应的cudaBuffer */
+        this.cudaBuffer = cudaBuffer;
+        /**显存占用的字节数 */
+        this.length = cudaBuffer.instance.pitch * cudaBuffer.size.y * cudaBuffer.size.z;
+        /**贴图指针 */
+        this.buffer = addon.createTexture3D(this.cudaBuffer.buffer,this.length);
+    }
+}
+
+module.exports.CudaBufferTexture3D = CudaBufferTexture3D;
+
+
 /**Cuda三维贴图 */
 class CudaTexutre3D{
     /**
