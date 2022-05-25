@@ -206,6 +206,13 @@ class CudaBuffer{
             //读取buffer
             addon.readBuffer(self.buffer,buffer,buffer.byteLength);
         }
+
+        /**
+         * 释放显存
+         */
+        this.destory = function(){
+            addon.freeBuffer(this.buffer);
+        }
     }
 }
 
