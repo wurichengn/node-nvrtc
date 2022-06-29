@@ -3,6 +3,13 @@ var NVRTC = require("../index.js");
 /**可用的设备数量 */
 var deviceCount = NVRTC.getDeviceCount();
 
+console.log(NVRTC.deviceGetLimit(0));
+console.log(NVRTC.deviceGetLimit(1));
+console.log(NVRTC.deviceGetLimit(2));
+console.log(NVRTC.deviceGetLimit(3));
+console.log(NVRTC.deviceGetLimit(4));
+console.log(NVRTC.deviceGetLimit(5));
+
 if(deviceCount <= 0){
   throw new Error("无法运行例子，因为并没有找到合适的设备");
 }

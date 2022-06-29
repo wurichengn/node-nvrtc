@@ -48,6 +48,38 @@ var setDevice = addon.setDevice;
 module.exports.setDevice = setDevice;
 
 /**
+ * 获取设备的限制
+ * @type {(type:number)=>void}
+ */
+ var deviceGetLimit = addon.deviceGetLimit;
+ module.exports.deviceGetLimit = deviceGetLimit;
+
+/**
+ * 设置设备的限制
+ * @type {(type:number,value:number)=>void}
+ */
+var deviceSetLimit = addon.deviceSetLimit;
+module.exports.deviceSetLimit = deviceSetLimit;
+
+/**设备限制枚举映射 */
+module.exports.cudaLimit = {
+    /** 线程堆栈大小 */
+    cudaLimitStackSize:0,
+    /** 线程打印内容尺寸 */
+    cudaLimitPrintfFifoSize:1,
+    /** 线程内部动态申请内存大小 */
+    cudaLimitMallocHeapSize:2,
+    /** 设备运行时同步深度 */
+    cudaLimitDevRuntimeSyncDepth:3,
+    /** 设备运行时挂起的启动计数 */
+    cudaLimitDevRuntimePendingLaunchCount:4,
+    /** 一个介于 0 和 128 之间的值，指示 L2 的最大获取粒度（以字节为单位） */
+    cudaLimitMaxL2FetchGranularity:5,
+    /** L2 持久行缓存大小的字节大小 */
+    cudaLimitPersistingL2CacheSize:6
+};
+
+/**
  * 获取指定设备的信息
  * @type {(device:number)=>{}}
  */

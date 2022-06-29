@@ -4,24 +4,24 @@
 
 using namespace Napi;
 
-/**å½“å‰æ–‡ä»¶å¤„ç†å¯¹åº”çš„ä¸Šä¸‹æ–‡ */
+/**µ±Ç°ÎÄ¼ş´¦Àí¶ÔÓ¦µÄÉÏÏÂÎÄ */
 Napi::Env * lastFileEnv;
-/**å½“å‰æ–‡ä»¶å¤„ç†å¯¹åº”çš„å›è°ƒå‡½æ•° */
+/**µ±Ç°ÎÄ¼ş´¦Àí¶ÔÓ¦µÄ»Øµ÷º¯Êı */
 Napi::Function lastFileCallback;
-//æ–‡ä»¶è¯»å–å›è°ƒ
+//ÎÄ¼ş¶ÁÈ¡»Øµ÷
 std::istream* file_callback(std::string filename, std::iostream& tmp_stream) {
-  //å¦‚æœæ²¡æœ‰å›è°ƒå¤„ç†åˆ™è·³è¿‡
+  //Èç¹ûÃ»ÓĞ»Øµ÷´¦ÀíÔòÌø¹ı
   if(lastFileEnv == NULL) {return 0;}
-  //è°ƒç”¨å›è°ƒ
+  //µ÷ÓÃ»Øµ÷
   auto value = lastFileCallback.Call(lastFileEnv->Global(),{Napi::String::New(*lastFileEnv,filename)});
-  //å¦‚æœä¸æ˜¯å­—ç¬¦ä¸²åˆ™ç»“æŸ
+  //Èç¹û²»ÊÇ×Ö·û´®Ôò½áÊø
   if(!value.IsString()) {return 0;}
-  //å†™å…¥å†…å®¹
+  //Ğ´ÈëÄÚÈİ
   tmp_stream << value.As<Napi::String>().Utf8Value();
   return &tmp_stream;
 }
 
-//å¤„ç†cudaé”™è¯¯
+//´¦Àícuda´íÎó
 void NodeCudaError(Napi::Env env,cudaError_t error){
   if(error == cudaSuccess) {return;}
   std::string err(cudaGetErrorString(cudaGetLastError()));
@@ -29,19 +29,19 @@ void NodeCudaError(Napi::Env env,cudaError_t error){
   Napi::TypeError::New(env,err).ThrowAsJavaScriptException();
 }
 
-//======è·å–è®¾å¤‡æ•°é‡======
+//======»ñÈ¡Éè±¸ÊıÁ¿======
 Napi::Value getDeviceProperties(const Napi::CallbackInfo& args){
-  //è·å–env
+  //»ñÈ¡env
   Napi::Env env = args.Env();
 
-  //è·å–cudaè®¾å¤‡
+  //»ñÈ¡cudaÉè±¸
   int device = args[0].As<Napi::Number>().Int32Value();
   cudaDeviceProp prop;
   NodeCudaError(env,cudaGetDeviceProperties(&prop,device));
 
-  //è¿”å›å¥æŸ„
+  //·µ»Ø¾ä±ú
   Napi::Object re = Napi::Object::New(env);
-  //å†™å…¥å±æ€§
+  //Ğ´ÈëÊôĞÔ
   re.Set(Napi::String::New(env, "name"),Napi::String::New(env,prop.name));
   re.Set(Napi::String::New(env, "totalGlobalMem"),Napi::Number::New(env,prop.totalGlobalMem));
   re.Set(Napi::String::New(env, "sharedMemPerBlock"),Napi::Number::New(env,prop.sharedMemPerBlock));
@@ -55,54 +55,78 @@ Napi::Value getDeviceProperties(const Napi::CallbackInfo& args){
   return re;
 }
 
-//======è·å–è®¾å¤‡æ•°é‡======
+//======»ñÈ¡Éè±¸ÊıÁ¿======
 Napi::Value getDeviceCount(const Napi::CallbackInfo& args){
-  //è·å–env
+  //»ñÈ¡env
   Napi::Env env = args.Env();
 
-  //è·å–cudaè®¾å¤‡
+  //»ñÈ¡cudaÉè±¸
   int count = 0;
   NodeCudaError(env,cudaGetDeviceCount(&count));
-  //è¿”å›å¥æŸ„
+  //·µ»Ø¾ä±ú
   return Napi::Number::New(env,(size_t)count);
 }
 
-//======è·å–å½“å‰ä½¿ç”¨çš„è®¾å¤‡======
+//======»ñÈ¡µ±Ç°Ê¹ÓÃµÄÉè±¸======
 Napi::Value getDevice(const Napi::CallbackInfo& args){
-  //è·å–env
+  //»ñÈ¡env
   Napi::Env env = args.Env();
 
-  //è·å–cudaè®¾å¤‡
+  //»ñÈ¡cudaÉè±¸
   int device = 0;
   NodeCudaError(env,cudaGetDevice(&device));
-  //è¿”å›å¥æŸ„
+  //·µ»Ø¾ä±ú
   return Napi::Number::New(env,(size_t)device);
 }
 
-//======è®¾ç½®å½“å‰ä½¿ç”¨çš„è®¾å¤‡======
+//======ÉèÖÃµ±Ç°Ê¹ÓÃµÄÉè±¸======
 void setDevice(const Napi::CallbackInfo& args){
-  //è·å–env
+  //»ñÈ¡env
   Napi::Env env = args.Env();
 
-  //è·å–cudaè®¾å¤‡
+  //»ñÈ¡cudaÉè±¸
   int device = args[0].As<Napi::Number>().Int32Value();
   NodeCudaError(env,cudaSetDevice(device));
 }
 
-//é‡ç½®å½“å‰æ˜¾å¡å½“å‰è¿›ç¨‹çš„æ‰€æœ‰å†…å®¹
+//ÖØÖÃµ±Ç°ÏÔ¿¨µ±Ç°½ø³ÌµÄËùÓĞÄÚÈİ
 void deviceReset(const Napi::CallbackInfo& args){
   cudaDeviceReset();
 }
 
-//======åˆ›å»ºç¨‹åº======
-Napi::Value createProgram(const Napi::CallbackInfo& args){
-  //è·å–env
+//»ñÈ¡µ±Ç°Éè±¸µÄÏŞÖÆ
+Napi::Value deviceGetLimit(const Napi::CallbackInfo& args){
+  //»ñÈ¡env
   Napi::Env env = args.Env();
 
-  //ç¨‹åºçš„ä»£ç 
+  //»ñÈ¡ÉèÖÃÏîÀàĞÍ
+  int type = args[0].As<Napi::Number>().Int32Value();
+  size_t value;
+  NodeCudaError(env,cudaDeviceGetLimit(&value,(cudaLimit)type));
+  return Napi::Number::New(env,value);
+}
+
+//ÉèÖÃµ±Ç°Éè±¸µÄÏŞÖÆ
+void deviceSetLimit(const Napi::CallbackInfo& args){
+  //»ñÈ¡env
+  Napi::Env env = args.Env();
+
+  //»ñÈ¡ÉèÖÃÏîÀàĞÍ
+  int type = args[0].As<Napi::Number>().Int32Value();
+  //»ñÈ¡ÉèÖÃÖµ
+  size_t value = args[1].As<Napi::Number>().Int32Value();
+  NodeCudaError(env,cudaDeviceSetLimit((cudaLimit)type,value));
+}
+
+//======´´½¨³ÌĞò======
+Napi::Value createProgram(const Napi::CallbackInfo& args){
+  //»ñÈ¡env
+  Napi::Env env = args.Env();
+
+  //³ÌĞòµÄ´úÂë
   auto str = args[0].As<Napi::String>().Utf8Value();
 
-  //å›è°ƒå¤„ç†
+  //»Øµ÷´¦Àí
   if(args.Length() > 1 && args[1].IsFunction()){
     lastFileEnv = &env;
     lastFileCallback = args[1].As<Napi::Function>();
@@ -112,14 +136,14 @@ Napi::Value createProgram(const Napi::CallbackInfo& args){
   
   jitify::experimental::Program *program = NULL;
   try{
-    //åˆ›å»ºcudaç¨‹åº
+    //´´½¨cuda³ÌĞò
     std::vector<std::string> opts;
     program = new jitify::experimental::Program(str, {}, opts,file_callback);
   }catch(std::runtime_error msg){
     Napi::TypeError::New(env,msg.what()).ThrowAsJavaScriptException();
   }
 
-  //è¿”å›å¥æŸ„
+  //·µ»Ø¾ä±ú
   return Napi::Number::New(env,(size_t)program);
 }
 
@@ -127,15 +151,15 @@ Napi::Value createProgram(const Napi::CallbackInfo& args){
 
 
 
-//======åˆ›å»ºæ ¸å¿ƒ======
+//======´´½¨ºËĞÄ======
 Napi::Value createKernel(const Napi::CallbackInfo& args){
-  //è·å–env
+  //»ñÈ¡env
   Napi::Env env = args.Env();
 
-  //è¦åˆ›å»ºçš„æ ¸å¿ƒæ–¹æ³•åç§°
+  //Òª´´½¨µÄºËĞÄ·½·¨Ãû³Æ
   auto str = args[1].As<Napi::String>().Utf8Value();
 
-  //åˆ›å»ºæ ¸å¿ƒ
+  //´´½¨ºËĞÄ
   //jitify::experimental::Program * program = (jitify::experimental::Program *)args[0].As<Napi::Number>().Int64Value();
   //jitify::experimental::Kernel object = program->kernel(str);
   //jitify::experimental::Kernel * kernel = (jitify::experimental::Kernel *) malloc(sizeof(jitify::experimental::Kernel));
@@ -155,18 +179,18 @@ Napi::Value createKernel(const Napi::CallbackInfo& args){
 
 
 
-//======åˆ›å»ºå®ä¾‹======
+//======´´½¨ÊµÀı======
 Napi::Value createInstance(const Napi::CallbackInfo& args){
-  //è·å–env
+  //»ñÈ¡env
   Napi::Env env = args.Env();
 
-  //åˆå§‹åŒ–æ ¸å¿ƒå®ä¾‹çš„å‚æ•°
+  //³õÊ¼»¯ºËĞÄÊµÀıµÄ²ÎÊı
   std::vector<std::string> instance_args;
   for(int i = 1;i < args.Length();i++){
     instance_args.push_back(args[i].As<Napi::String>().Utf8Value());
   }
 
-  //åˆ›å»ºå®ä¾‹
+  //´´½¨ÊµÀı
   jitify::experimental::Kernel * kernel = NULL;
   jitify::experimental::KernelInstantiation * instance = NULL;
   try{
@@ -182,9 +206,9 @@ Napi::Value createInstance(const Napi::CallbackInfo& args){
 
 
 
-//======åˆ›å»ºå¯åŠ¨å™¨======
+//======´´½¨Æô¶¯Æ÷======
 Napi::Value createLauncher(const Napi::CallbackInfo& args){
-  //è·å–env
+  //»ñÈ¡env
   Napi::Env env = args.Env();
 
   auto sg = args[1].As<Napi::Array>();
@@ -197,7 +221,7 @@ Napi::Value createLauncher(const Napi::CallbackInfo& args){
             bg.Get(1u).As<Napi::Number>().Uint32Value(),
             bg.Get(2u).As<Napi::Number>().Uint32Value());
 
-  //åˆ›å»ºå®ä¾‹
+  //´´½¨ÊµÀı
   jitify::experimental::KernelInstantiation * instance = (jitify::experimental::KernelInstantiation *)args[0].As<Napi::Number>().Int64Value();
   jitify::experimental::KernelLauncher object = instance->configure(grid,block);
   jitify::experimental::KernelLauncher * launcher = (jitify::experimental::KernelLauncher *)malloc(sizeof(jitify::experimental::KernelLauncher));
@@ -208,9 +232,9 @@ Napi::Value createLauncher(const Napi::CallbackInfo& args){
 
 
 
-//======ç”³è¯·å†…å­˜ç©ºé—´======
+//======ÉêÇëÄÚ´æ¿Õ¼ä======
 Napi::Value createBuffer(const Napi::CallbackInfo& args){
-  //è·å–env
+  //»ñÈ¡env
   Napi::Env env = args.Env();
 
   void * buffer = NULL;
@@ -219,9 +243,9 @@ Napi::Value createBuffer(const Napi::CallbackInfo& args){
   return Napi::Number::New(env,(size_t)buffer);
 }
 
-//======å†™å…¥æ•°æ®======
+//======Ğ´ÈëÊı¾İ======
 void writeBuffer(const Napi::CallbackInfo& args){
-  //è·å–env
+  //»ñÈ¡env
   Napi::Env env = args.Env();
 
   void * buffer = (void **)args[0].As<Napi::Number>().Int64Value();
@@ -231,9 +255,9 @@ void writeBuffer(const Napi::CallbackInfo& args){
   NodeCudaError(env,cudaMemcpy(buffer, data, size, cudaMemcpyHostToDevice));
 }
 
-//======é‡Šæ”¾å†…å­˜======
+//======ÊÍ·ÅÄÚ´æ======
 void freeBuffer(const Napi::CallbackInfo& args){
-  //è·å–env
+  //»ñÈ¡env
   
   Napi::Env env = args.Env();
 
@@ -242,9 +266,9 @@ void freeBuffer(const Napi::CallbackInfo& args){
 }
 
 
-//======è¯»å–æ•°æ®======
+//======¶ÁÈ¡Êı¾İ======
 void readBuffer(const Napi::CallbackInfo& args){
-  //è·å–env
+  //»ñÈ¡env
   Napi::Env env = args.Env();
 
   void * buffer = (void **)args[0].As<Napi::Number>().Int64Value();
@@ -255,9 +279,9 @@ void readBuffer(const Napi::CallbackInfo& args){
 
 
 
-//======åˆ›å»ºæ•°ç»„======
+//======´´½¨Êı×é======
 Napi::Value createArray3D(const Napi::CallbackInfo& args){
-  //è·å–env
+  //»ñÈ¡env
   Napi::Env env = args.Env();
 
   size_t sizeX = (size_t)args[0].As<Napi::Number>().Int64Value();
@@ -271,9 +295,9 @@ Napi::Value createArray3D(const Napi::CallbackInfo& args){
   return Napi::Number::New(env,(size_t)array);
 }
 
-//======å†™å…¥æ•°ç»„======
+//======Ğ´ÈëÊı×é======
 void writeArray3D(const Napi::CallbackInfo& args){
-  //è·å–env
+  //»ñÈ¡env
   Napi::Env env = args.Env();
 
   cudaArray_t array = (cudaArray_t)args[0].As<Napi::Number>().Int64Value();
@@ -292,9 +316,9 @@ void writeArray3D(const Napi::CallbackInfo& args){
 
 
 
-//======è¯»å–æ•°ç»„======
+//======¶ÁÈ¡Êı×é======
 void readArray3D(const Napi::CallbackInfo& args){
-  //è·å–env
+  //»ñÈ¡env
   Napi::Env env = args.Env();
 
   cudaArray_t array = (cudaArray_t)args[0].As<Napi::Number>().Int64Value();
@@ -312,9 +336,9 @@ void readArray3D(const Napi::CallbackInfo& args){
 }
 
 
-//åˆ›å»ºä¸‰ç»´buffer
+//´´½¨ÈıÎ¬buffer
 Napi::Value createBuffer3D(const Napi::CallbackInfo& args){
-  //è·å–env
+  //»ñÈ¡env
   Napi::Env env = args.Env();
 
   cudaPitchedPtr * ptr = new cudaPitchedPtr();
@@ -334,9 +358,9 @@ Napi::Value createBuffer3D(const Napi::CallbackInfo& args){
 }
 
 
-//å†™å…¥ä¸‰ç»´buffer
+//Ğ´ÈëÈıÎ¬buffer
 void writeBuffer3D(const Napi::CallbackInfo& args){
-  //è·å–env
+  //»ñÈ¡env
   Napi::Env env = args.Env();
 
   cudaPitchedPtr * ptr = (cudaPitchedPtr *)args[0].As<Napi::Number>().Int64Value();
@@ -357,9 +381,9 @@ void writeBuffer3D(const Napi::CallbackInfo& args){
 }
 
 
-//è¯»å–ä¸‰ç»´buffer
+//¶ÁÈ¡ÈıÎ¬buffer
 void readBuffer3D(const Napi::CallbackInfo& args){
-  //è·å–env
+  //»ñÈ¡env
   Napi::Env env = args.Env();
 
   cudaPitchedPtr * ptr = (cudaPitchedPtr *)args[0].As<Napi::Number>().Int64Value();
@@ -381,7 +405,7 @@ void readBuffer3D(const Napi::CallbackInfo& args){
 
 
 Napi::Value createTexture3D(const Napi::CallbackInfo& args){
-  //è·å–env
+  //»ñÈ¡env
   Napi::Env env = args.Env();
 
   cudaPitchedPtr * ptr = (cudaPitchedPtr *)args[0].As<Napi::Number>().Int64Value();
@@ -412,21 +436,21 @@ Napi::Value createTexture3D(const Napi::CallbackInfo& args){
 }
 
 
-//======è¿è¡Œæ ¸å¿ƒ======
+//======ÔËĞĞºËĞÄ======
 Napi::Value runKernel(const Napi::CallbackInfo& args){
-  //è·å–env
+  //»ñÈ¡env
   Napi::Env env = args.Env();
 
-  //è¦è¿”å›çš„å¯¹è±¡
+  //Òª·µ»ØµÄ¶ÔÏó
   Napi::Object re = Napi::Object::New(env);
   re.Set(Napi::String::New(env,"code"),Napi::Number::New(env,0));
 
-  //ç¨‹åºåœ°å€
+  //³ÌĞòµØÖ·
   jitify::experimental::Program * program = (jitify::experimental::Program *)args[0].As<Napi::Number>().Int64Value();
-  //æ ¸å¿ƒåç§°
+  //ºËĞÄÃû³Æ
   auto kname = args[1].As<Napi::String>().Utf8Value();
 
-  //åˆå§‹åŒ–æ ¸å¿ƒå®ä¾‹çš„æ³›å‹å‚æ•°
+  //³õÊ¼»¯ºËĞÄÊµÀıµÄ·ºĞÍ²ÎÊı
   auto templates = args[2].As<Napi::Array>();
   std::vector<std::string> instance_template;
   for(int i = 0;i < templates.Length();i++){
@@ -434,7 +458,7 @@ Napi::Value runKernel(const Napi::CallbackInfo& args){
     instance_template.push_back(templates.Get(i).As<Napi::String>().Utf8Value());
   }
 
-  //åˆå§‹åŒ–å®ä¾‹å‚æ•°
+  //³õÊ¼»¯ÊµÀı²ÎÊı
   auto arguments = args[3].As<Napi::Array>();
   std::vector<void *> instance_args;
   void * addrs[256];
@@ -443,11 +467,11 @@ Napi::Value runKernel(const Napi::CallbackInfo& args){
     instance_args.push_back((void *)&addrs[i]);
   }
 
-  //æ„é€ è®¡ç®—èŒƒå›´
+  //¹¹Ôì¼ÆËã·¶Î§
   dim3 grid(1);
   dim3 block(1);
 
-  //è¿è¡Œ
+  //ÔËĞĞ
   auto res = program->kernel(kname).instantiate(instance_template).configure(grid, block).launch(instance_args);
   if(res != CUDA_SUCCESS){
     const char* str;
@@ -460,19 +484,19 @@ Napi::Value runKernel(const Napi::CallbackInfo& args){
 
 
 
-//======è¿è¡Œå®ä¾‹======
+//======ÔËĞĞÊµÀı======
 Napi::Value runInstance(const Napi::CallbackInfo& args){
-  //è·å–env
+  //»ñÈ¡env
   Napi::Env env = args.Env();
 
-  //è¦è¿”å›çš„å¯¹è±¡
+  //Òª·µ»ØµÄ¶ÔÏó
   Napi::Object re = Napi::Object::New(env);
   re.Set(Napi::String::New(env,"code"),Napi::Number::New(env,0));
 
-  //ç¨‹åºåœ°å€
+  //³ÌĞòµØÖ·
   jitify::experimental::KernelInstantiation * instance = (jitify::experimental::KernelInstantiation *)args[0].As<Napi::Number>().Int64Value();
 
-  //åˆå§‹åŒ–å®ä¾‹å‚æ•°
+  //³õÊ¼»¯ÊµÀı²ÎÊı
   auto arguments = args[1].As<Napi::Array>();
   std::vector<void *> instance_args;
   void * addrs[256];
@@ -481,11 +505,11 @@ Napi::Value runInstance(const Napi::CallbackInfo& args){
     instance_args.push_back((void *)&addrs[i]);
   }
 
-  //æ„é€ è®¡ç®—èŒƒå›´
+  //¹¹Ôì¼ÆËã·¶Î§
   dim3 grid(1);
   dim3 block(1);
 
-  //è¿è¡Œ
+  //ÔËĞĞ
   auto res = instance->configure(grid, block).launch(instance_args);
   if(res != CUDA_SUCCESS){
     const char* str;
@@ -498,19 +522,19 @@ Napi::Value runInstance(const Napi::CallbackInfo& args){
 
 
 
-//======è¿è¡Œå¯åŠ¨å™¨======
+//======ÔËĞĞÆô¶¯Æ÷======
 Napi::Value runLauncher(const Napi::CallbackInfo& args){
-  //è·å–env
+  //»ñÈ¡env
   Napi::Env env = args.Env();
 
-  //è¦è¿”å›çš„å¯¹è±¡
+  //Òª·µ»ØµÄ¶ÔÏó
   Napi::Object re = Napi::Object::New(env);
   re.Set(Napi::String::New(env,"code"),Napi::Number::New(env,0));
 
-  //ç¨‹åºåœ°å€
+  //³ÌĞòµØÖ·
   jitify::experimental::KernelLauncher * launcher = (jitify::experimental::KernelLauncher *)args[0].As<Napi::Number>().Int64Value();
 
-  //åˆå§‹åŒ–å®ä¾‹å‚æ•°
+  //³õÊ¼»¯ÊµÀı²ÎÊı
   auto arguments = args[1].As<Napi::Array>();
   std::vector<void *> instance_args;
   void * addrs[256];
@@ -519,11 +543,11 @@ Napi::Value runLauncher(const Napi::CallbackInfo& args){
     instance_args.push_back((void *)&addrs[i]);
   }
 
-  //æ„é€ è®¡ç®—èŒƒå›´
+  //¹¹Ôì¼ÆËã·¶Î§
   dim3 grid(1);
   dim3 block(1);
 
-  //è¿è¡Œ
+  //ÔËĞĞ
   auto res = launcher->launch(instance_args);
   if(res != CUDA_SUCCESS){
     const char* str;
@@ -540,16 +564,16 @@ Napi::Value runLauncher(const Napi::CallbackInfo& args){
 
 
 Napi::Value test(const Napi::CallbackInfo& args){
-  //è·å–env
+  //»ñÈ¡env
   Napi::Env env = args.Env();
 
-  //è¦è¿”å›çš„å¯¹è±¡
+  //Òª·µ»ØµÄ¶ÔÏó
   Napi::Object re = Napi::Object::New(env);
   re.Set(Napi::String::New(env,"code"),Napi::Number::New(env,0));
 
   void * d_data = (void *)args[2].As<Napi::Number>().Int64Value();
 
-  //åˆå§‹åŒ–æ ¸å¿ƒå®ä¾‹çš„å‚æ•°
+  //³õÊ¼»¯ºËĞÄÊµÀıµÄ²ÎÊı
   std::vector<std::string> instance_args;
   for(int i = 3;i < args.Length();i++){
     instance_args.push_back(args[i].As<Napi::String>().Utf8Value());
@@ -569,10 +593,10 @@ Napi::Value test(const Napi::CallbackInfo& args){
   return re;
 }
 
-//CUDAæµ‹è¯•
+//CUDA²âÊÔ
 Napi::Object CudaTest(const Napi::CallbackInfo& args){
   Napi::Env env = args.Env();
-  //è¦è¿”å›çš„å¯¹è±¡
+  //Òª·µ»ØµÄ¶ÔÏó
   Napi::Object re = Napi::Object::New(env);
   auto str = args[0].As<Napi::String>().Utf8Value();
   
@@ -601,9 +625,9 @@ Napi::Object CudaTest(const Napi::CallbackInfo& args){
   return re;
 }
 
-//å®šä¹‰åˆå§‹åŒ–æ–¹æ³•
+//¶¨Òå³õÊ¼»¯·½·¨
 Napi::Object Init(Napi::Env env, Napi::Object exports) {
-  //åˆå§‹åŒ–cuda
+  //³õÊ¼»¯cuda
   void * buffer;
   cudaMalloc(&buffer,1);
 
@@ -635,11 +659,13 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
   exports.Set(Napi::String::New(env, "getDeviceCount"),Napi::Function::New(env, getDeviceCount));
   exports.Set(Napi::String::New(env, "getDevice"),Napi::Function::New(env, getDevice));
   exports.Set(Napi::String::New(env, "setDevice"),Napi::Function::New(env, setDevice));
+  exports.Set(Napi::String::New(env, "deviceGetLimit"),Napi::Function::New(env, deviceGetLimit));
+  exports.Set(Napi::String::New(env, "deviceSetLimit"),Napi::Function::New(env, deviceSetLimit));
   exports.Set(Napi::String::New(env, "deviceReset"),Napi::Function::New(env, deviceReset));
   exports.Set(Napi::String::New(env, "getDeviceProperties"),Napi::Function::New(env, getDeviceProperties));
 
   return exports;
 }
 
-//ä»¥Initä½œä¸ºåˆå§‹åŒ–æ–¹æ³•
+//ÒÔInit×÷Îª³õÊ¼»¯·½·¨
 NODE_API_MODULE(addon, Init)
