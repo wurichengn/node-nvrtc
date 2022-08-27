@@ -628,8 +628,8 @@ Napi::Object CudaTest(const Napi::CallbackInfo& args){
 //定义初始化方法
 Napi::Object Init(Napi::Env env, Napi::Object exports) {
   //初始化cuda
-  void * buffer;
-  cudaMalloc(&buffer,1);
+  // void * buffer;
+  // cudaMalloc(&buffer,1);
 
   exports.Set(Napi::String::New(env, "CudaTest"),Napi::Function::New(env, CudaTest));
   exports.Set(Napi::String::New(env, "createProgram"),Napi::Function::New(env, createProgram));
