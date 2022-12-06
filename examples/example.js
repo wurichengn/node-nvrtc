@@ -38,8 +38,10 @@ void my_kernel(float* data,cudaTextureObject_t tex) {
     data[threadIdx.x] = tex3D<char>(tex,1,1,1) + tex3D<char>(tex,1,1,1);
 }`;
 
+var instance = new NVRTC.CudaProgram(code).createKernel("my_kernel").createInstantiate([]);
+console.log(instance.getPTX());
 /**初始化计算用的启动器 */
-var launcher = new NVRTC.CudaProgram(code).createKernel("my_kernel").createInstantiate([]).createLauncher([1,1,1],[data.length,1,1]);
+var launcher = instance.createLauncher([1,1,1],[data.length,1,1]);
 
 //进行一次cuda运算
 launcher.run(cudaData,texture);

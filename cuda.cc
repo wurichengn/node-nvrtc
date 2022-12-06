@@ -2,7 +2,7 @@
 #include "jitify.hpp"
 #include "cuda_runtime.h"
 
-using namespace Napi;
+// using namespace Napi;
 
 /**当前文件处理对应的上下文 */
 Napi::Env * lastFileEnv;
@@ -203,7 +203,34 @@ Napi::Value createInstance(const Napi::CallbackInfo& args){
   return Napi::Number::New(env,(size_t)instance);
 }
 
+//======获取实例信息======
+Napi::Value getInstancePTX(const Napi::CallbackInfo& args){
+  //获取env
+  Napi::Env env = args.Env();
 
+  //要获取信息的实例
+  jitify::experimental::KernelInstantiation * instance = (jitify::experimental::KernelInstantiation *)args[0].As<Napi::Number>().Int64Value();
+
+  //产生对象
+  Napi::Object re = Napi::Object::New(env);
+  //写入PTX
+  re.Set(Napi::String::New(env, "ptx"),Napi::String::New(env,instance->ptx()));
+  //写入引用文件
+  Napi::Array v_files = Napi::Array::New(env);
+  std::vector<std::string> link_files = instance->link_files();
+  for(int i = 0;i < link_files.size();i++){
+    v_files.Set(Napi::Number::New(env,i),Napi::String::New(env,link_files[i]));
+  }
+  re.Set(Napi::String::New(env, "link_files"),v_files);
+  //写入引用文件
+  Napi::Array v_paths = Napi::Array::New(env);
+  std::vector<std::string> link_paths = instance->link_paths();
+  for(int i = 0;i < link_paths.size();i++){
+    v_paths.Set(Napi::Number::New(env,i),Napi::String::New(env,link_paths[i]));
+  }
+  re.Set(Napi::String::New(env, "link_paths"),v_paths);
+  return re;
+}
 
 
 //======创建启动器======
@@ -231,6 +258,17 @@ Napi::Value createLauncher(const Napi::CallbackInfo& args){
 }
 
 
+//======申请锁定内存空间======
+Napi::Value createBufferHost(const Napi::CallbackInfo& args){
+  //获取env
+  Napi::Env env = args.Env();
+
+  void * buffer = NULL;
+  NodeCudaError(env,cudaHostAlloc(&buffer,(size_t)args[0].As<Napi::Number>().Int64Value(),cudaHostAllocDefault ));
+
+  return Napi::Number::New(env,(size_t)buffer);
+}
+
 
 //======申请内存空间======
 Napi::Value createBuffer(const Napi::CallbackInfo& args){
@@ -253,6 +291,16 @@ void writeBuffer(const Napi::CallbackInfo& args){
   void * data = args[1].As<Napi::ArrayBuffer>().Data();
   
   NodeCudaError(env,cudaMemcpy(buffer, data, size, cudaMemcpyHostToDevice));
+}
+
+//======释放内存======
+void freeBufferHost(const Napi::CallbackInfo& args){
+  //获取env
+  
+  Napi::Env env = args.Env();
+
+  void * buffer = (void **)args[0].As<Napi::Number>().Int64Value();
+  NodeCudaError(env,cudaFreeHost(buffer));
 }
 
 //======释放内存======
@@ -637,10 +685,14 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
   exports.Set(Napi::String::New(env, "createInstance"),Napi::Function::New(env, createInstance));
   exports.Set(Napi::String::New(env, "createLauncher"),Napi::Function::New(env, createLauncher));
 
+  exports.Set(Napi::String::New(env, "getInstancePTX"),Napi::Function::New(env, getInstancePTX));
+
   exports.Set(Napi::String::New(env, "createBuffer"),Napi::Function::New(env, createBuffer));
+  exports.Set(Napi::String::New(env, "createBufferHost"),Napi::Function::New(env, createBufferHost));
   exports.Set(Napi::String::New(env, "writeBuffer"),Napi::Function::New(env, writeBuffer));
   exports.Set(Napi::String::New(env, "readBuffer"),Napi::Function::New(env, readBuffer));
   exports.Set(Napi::String::New(env, "freeBuffer"),Napi::Function::New(env, freeBuffer));
+  exports.Set(Napi::String::New(env, "freeBufferHost"),Napi::Function::New(env, freeBufferHost));
 
   exports.Set(Napi::String::New(env, "createBuffer3D"),Napi::Function::New(env, createBuffer3D));
   exports.Set(Napi::String::New(env, "writeBuffer3D"),Napi::Function::New(env, writeBuffer3D));

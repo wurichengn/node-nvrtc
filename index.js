@@ -170,6 +170,14 @@ class CudaInstantiate{
         this.createLauncher = function(grid_size,block_size){
             return new CudaLauncher(self,grid_size,block_size);
         }
+
+        /**
+         * 获取实例PTX信息
+         * @returns 
+         */
+        this.getPTX = function(){
+            return addon.getInstancePTX(this.instantiate);
+        }
     }
 }
 

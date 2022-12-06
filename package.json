@@ -15,8 +15,8 @@
     "javascript"
   ],
 	"dependencies": {
-		"node-addon-api": "^4.2.0",
-		"node-gyp": "^8.4.1"
+		"node-addon-api": "5.0.0",
+		"node-gyp": "8.4.1"
 	},
 	"scripts": {
 		"debug": "node-gyp configure build --debug",
