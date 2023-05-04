@@ -232,6 +232,47 @@ Napi::Value getInstancePTX(const Napi::CallbackInfo& args){
   return re;
 }
 
+//======实例序列化======
+Napi::Value serializeInstance(const Napi::CallbackInfo& args){
+  //获取env
+  Napi::Env env = args.Env();
+
+  //要获取信息的实例
+  jitify::experimental::KernelInstantiation * instance = (jitify::experimental::KernelInstantiation *)args[0].As<Napi::Number>().Int64Value();
+  
+  //序列化
+  std::string code = instance->serialize();
+
+  //转换为arrayBuffer
+  Napi::ArrayBuffer arrayBuffer = Napi::ArrayBuffer::New(env,code.size());
+  void * bufferData = arrayBuffer.Data();
+  memcpy(bufferData,code.c_str(),code.size());
+
+  return arrayBuffer;
+}
+
+//======实例反序列化======
+Napi::Value deserializeInstance(const Napi::CallbackInfo& args){
+  //获取env
+  Napi::Env env = args.Env();
+
+  //转换为字符串
+  Napi::ArrayBuffer buffer = args[0].As<Napi::ArrayBuffer>();
+  std::string code((char *)buffer.Data(),buffer.ByteLength());
+
+  //反序列化
+  try{
+    jitify::experimental::KernelInstantiation object = jitify::experimental::KernelInstantiation::deserialize(code);
+    jitify::experimental::KernelInstantiation * instance = (jitify::experimental::KernelInstantiation *)malloc(sizeof(jitify::experimental::KernelInstantiation));
+    memcpy(instance,&object,sizeof(jitify::experimental::KernelInstantiation));
+    return Napi::Number::New(env,(size_t)instance);
+  }catch(std::runtime_error msg){
+    Napi::TypeError::New(env,msg.what()).ThrowAsJavaScriptException();
+  }
+
+  return Napi::Number::New(env,0);
+}
+
 
 //======创建启动器======
 Napi::Value createLauncher(const Napi::CallbackInfo& args){
@@ -686,6 +727,8 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
   exports.Set(Napi::String::New(env, "createLauncher"),Napi::Function::New(env, createLauncher));
 
   exports.Set(Napi::String::New(env, "getInstancePTX"),Napi::Function::New(env, getInstancePTX));
+  exports.Set(Napi::String::New(env, "serializeInstance"),Napi::Function::New(env, serializeInstance));
+  exports.Set(Napi::String::New(env, "deserializeInstance"),Napi::Function::New(env, deserializeInstance));
 
   exports.Set(Napi::String::New(env, "createBuffer"),Napi::Function::New(env, createBuffer));
   exports.Set(Napi::String::New(env, "createBufferHost"),Napi::Function::New(env, createBufferHost));

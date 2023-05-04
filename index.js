@@ -147,19 +147,25 @@ module.exports.CudaKernel = CudaKernel;
 class CudaInstantiate{
     /**
      * 
-     * @param {CudaKernel} kernel 实例所属的核心
+     * @param {CudaKernel|{ptx:string,link_files:[],link_paths:[]}} kernel 实例所属的核心 或者是 PTX数据
      * @param {[]} templates 实例的模板参数
      */
     constructor(kernel,templates){
         var self = this;
-        /**实例所属的核心对象 */
-        this.kernel = kernel;
-        /**实例初始化时的模板参数 */
-        this.templates = templates || [];
-        this.templates = this.templates.map(v => (v + ""));
-        var temps = [kernel.kernel,...this.templates];
-        /**实例句柄 */
-        this.instantiate = addon.createInstance.apply(addon,temps);
+        //如果是kernel初始化
+        if(kernel instanceof CudaKernel){
+            /**实例所属的核心对象 */
+            this.kernel = kernel;
+            /**实例初始化时的模板参数 */
+            this.templates = templates || [];
+            this.templates = this.templates.map(v => (v + ""));
+            var temps = [kernel.kernel,...this.templates];
+            /**实例句柄 */
+            this.instantiate = addon.createInstance.apply(addon,temps);
+        }else if(kernel instanceof ArrayBuffer){
+            //使用序列化字符串初始化
+            this.instantiate = addon.deserializeInstance(kernel);
+        }
 
         /**
          * 创建启动器
@@ -177,6 +183,11 @@ class CudaInstantiate{
          */
         this.getPTX = function(){
             return addon.getInstancePTX(this.instantiate);
+        }
+
+        /** 序列化PTX */
+        this.serialize = function(){
+            return addon.serializeInstance(this.instantiate);
         }
     }
 }
