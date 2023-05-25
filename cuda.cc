@@ -262,9 +262,11 @@ Napi::Value deserializeInstance(const Napi::CallbackInfo& args){
 
   //·´ÐòÁÐ»¯
   try{
-    jitify::experimental::KernelInstantiation object = jitify::experimental::KernelInstantiation::deserialize(code);
-    jitify::experimental::KernelInstantiation * instance = (jitify::experimental::KernelInstantiation *)malloc(sizeof(jitify::experimental::KernelInstantiation));
-    memcpy(instance,&object,sizeof(jitify::experimental::KernelInstantiation));
+    // jitify::experimental::KernelInstantiation object = jitify::experimental::KernelInstantiation::deserialize(code);
+    // jitify::experimental::KernelInstantiation * instance = (jitify::experimental::KernelInstantiation *)malloc(sizeof(jitify::experimental::KernelInstantiation));
+    // instance->_cuda_kernel = std::make_unique<jitify::detail::CUDAKernel>(*object._cuda_kernel);
+    // memcpy(instance,&object,sizeof(jitify::experimental::KernelInstantiation));
+    jitify::experimental::KernelInstantiation * instance = jitify::experimental::KernelInstantiation::deserialize_ptr(code);
     return Napi::Number::New(env,(size_t)instance);
   }catch(std::runtime_error msg){
     Napi::TypeError::New(env,msg.what()).ThrowAsJavaScriptException();

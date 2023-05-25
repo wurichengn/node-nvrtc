@@ -4193,6 +4193,18 @@ class KernelInstantiation {
     return KernelInstantiation(func_name, ptx, link_files, link_paths);
   }
 
+  //LCG调整::加入一个生成反序列化指针的方法
+  static KernelInstantiation * deserialize_ptr(
+      std::string const& serialized_kernel_inst) {
+    std::string func_name, ptx;
+    std::vector<std::string> link_files, link_paths;
+    if (!serialization::deserialize(serialized_kernel_inst, &func_name, &ptx,
+                                    &link_files, &link_paths)) {
+      throw std::runtime_error("Failed to deserialize kernel instantiation");
+    }
+    return new KernelInstantiation(func_name, ptx, link_files, link_paths);
+  }
+
   /*! Save the program.
    *
    * \see deserialize

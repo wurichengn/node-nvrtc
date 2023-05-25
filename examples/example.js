@@ -39,7 +39,7 @@ void my_kernel(float* data,cudaTextureObject_t tex) {
 }`;
 
 var instance = new NVRTC.CudaProgram(code).createKernel("my_kernel").createInstantiate([]);
-console.log(instance.getPTX());
+instance = new NVRTC.CudaInstantiate(instance.serialize());
 /**初始化计算用的启动器 */
 var launcher = instance.createLauncher([1,1,1],[data.length,1,1]);
 
