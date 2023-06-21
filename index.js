@@ -230,7 +230,8 @@ class CudaLauncher{
 
 module.exports.CudaLauncher = CudaLauncher;
 
-
+/** @type {CudaBuffer[]} 全局保存的cudaBuffer列表 */
+const globalBufferList = [];
 /**Cuda缓冲区 */
 class CudaBuffer{
     constructor(size){
@@ -239,6 +240,8 @@ class CudaBuffer{
         this.buffer = addon.createBuffer(size);
         /**缓冲区尺寸 */
         this.size = size;
+        //加入到全局
+        globalBufferList.push(this);
 
         /**
          * 写入数据
@@ -262,8 +265,16 @@ class CudaBuffer{
          * 释放显存
          */
         this.destory = function(){
+            globalBufferList.splice(globalBufferList.indexOf(this),1);
             addon.freeBuffer(this.buffer);
         }
+    }
+}
+
+/** 释放所有的buffer */
+module.exports.DestoryAllBuffer = function(){
+    for(var i = globalBufferList.length - 1;i >= 0;i--){
+        globalBufferList[i].destory();
     }
 }
 
